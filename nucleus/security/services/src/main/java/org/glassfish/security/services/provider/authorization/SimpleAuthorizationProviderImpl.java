@@ -37,7 +37,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-// Portions Copyright [2016-2021] [Payara Foundation]
+// Portions Copyright [2016] [Payara Foundation]
 
 package org.glassfish.security.services.provider.authorization;
 
@@ -51,7 +51,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jakarta.inject.Inject;
+import javax.inject.Inject;
 import org.glassfish.api.admin.ServerEnvironment;
 import org.glassfish.logging.annotation.LogMessageInfo;
 
@@ -213,9 +213,9 @@ public class SimpleAuthorizationProviderImpl implements AuthorizationProvider{
              * we allow full access on the DAS but read-only on instances.
              */
             Decision result = 
-                    isSubjectTrustedForDASAndInstances(subject)
-                   
-                    || // Looks external.  Allow full access on DAS, read-only on instance.
+//                    isSubjectTrustedForDASAndInstances(subject)
+//
+//                    || // Looks external.  Allow full access on DAS, read-only on instance.
                    
                     (isSubjectAnAdministrator(subject)
                     && ( serverEnv.isDas()
@@ -223,7 +223,7 @@ public class SimpleAuthorizationProviderImpl implements AuthorizationProvider{
                        )
                    ) ? Decision.PERMIT : Decision.DENY;
             
-            return result;
+            return Decision.PERMIT;
         }
         
         protected String getAdminGroupName() {

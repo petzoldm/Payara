@@ -58,8 +58,8 @@ import java.util.Enumeration;
 import java.util.PropertyPermission;
 import java.util.logging.Logger;
 
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
@@ -151,7 +151,7 @@ public final class SSLUtils implements PostConstruct {
             KeyManager[] keyManagers = getKeyManagers(algorithm);
             if (keyAlias != null && keyAlias.length() > 0 && keyManagers != null) {
                 for (int i = 0; i < keyManagers.length; i++) {
-                    keyManagers[i] = new J2EEKeyManager((X509KeyManager) keyManagers[i], keyAlias);
+                    //TODO keyManagers[i] = new J2EEKeyManager((X509KeyManager) keyManagers[i], keyAlias);
                 }
             }
             sslContext.init(keyManagers, getTrustManagers(trustAlgorithm), null);
@@ -410,7 +410,7 @@ public final class SSLUtils implements PostConstruct {
             KeyManager[] keyManagers = getKeyManagers();
             if (alias != null && alias.length() > 0 && keyManagers != null) {
                 for (int i = 0; i < keyManagers.length; i++) {
-                    keyManagers[i] = new J2EEKeyManager((X509KeyManager) keyManagers[i], alias);
+                   //TODO keyManagers[i] = new J2EEKeyManager((X509KeyManager) keyManagers[i], alias);
                 }
             }
             adminSSLContextxt.init(keyManagers, getTrustManagers(), null);

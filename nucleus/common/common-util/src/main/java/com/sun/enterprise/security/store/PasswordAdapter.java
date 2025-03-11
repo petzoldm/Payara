@@ -37,7 +37,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-// Portions Copyright [2019-2024] Payara Foundation and/or affiliates
+// Portions Copyright [2019] Payara Foundation and/or affiliates
 
 package com.sun.enterprise.security.store;
 
@@ -47,7 +47,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -77,6 +76,32 @@ public final class PasswordAdapter {
         return masterPassword;
     }
 
+    private static byte[] addPadding(byte[] arr, int targetSize){
+        if(arr.length > targetSize)
+            throw new IllegalArgumentException("Input array is already larger than targetSize");
+        if(arr.length == targetSize)
+            return arr;
+
+        byte[] padded = new byte[targetSize];
+        Arrays.fill(padded, (byte)0);
+        System.arraycopy(arr, 0, padded, 0, arr.length);
+        return padded;
+    }
+
+    private static byte[] removePadding(byte[] arr){
+        int i=arr.length;
+        for(; i>0; i--) {
+            if(arr[i-1] != (byte)0) {
+                break;
+            }
+        }
+
+        byte[] out = new byte[i];
+        System.arraycopy(arr, 0, out, 0, i);
+
+        return out;
+    }
+
     private static String getDefaultKeyFileName() {
         return System.getProperty(SystemPropertyConstants.INSTANCE_ROOT_PROPERTY) + File.separator + "config" + File.separator + PASSWORD_ALIAS_KEYSTORE;
     }
@@ -91,7 +116,7 @@ public final class PasswordAdapter {
      * @throws NoSuchAlgorithmException
      */
     public PasswordAdapter(char[] masterPassword) throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException {
-       this( getDefaultKeyFileName(), masterPassword );
+        this( getDefaultKeyFileName(), masterPassword );
     }
 
     /**
@@ -104,9 +129,9 @@ public final class PasswordAdapter {
      * @throws KeyStoreException
      * @throws NoSuchAlgorithmException
      */
-    public PasswordAdapter(final String keyStoreFileName, final char[] masterPassword) 
+    public PasswordAdapter(final String keyStoreFileName, final char[] masterPassword)
             throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException {
-        
+
         final File  keyStoreFile    = new File( keyStoreFileName );
 
         this.pwdStore   = loadKeyStore( keyStoreFile, masterPassword);
@@ -129,12 +154,12 @@ public final class PasswordAdapter {
      */
     private static KeyStore loadKeyStore( final File keyStoreFile, final char[] masterPassword )
             throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException {
-        
-        final KeyStore keyStore = KeyStore.getInstance("JCEKS");
+
+        final KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
 
         if (keyStoreFile.exists()) {
             try ( // don't buffer keystore; it's tiny anyway
-                    FileInputStream input = new FileInputStream(keyStoreFile)) {
+                  FileInputStream input = new FileInputStream(keyStoreFile)) {
                 keyStore.load(input, masterPassword);
             }
         } else {
@@ -161,7 +186,7 @@ public final class PasswordAdapter {
         final Key key = pwdStore.getKey( alias, getMasterPassword() );
         if ( key != null )
         {
-            passwordString  = new String(key.getEncoded(), StandardCharsets.UTF_8);
+            passwordString  = new String( removePadding(key.getEncoded()) );
         }
 
         return passwordString;
@@ -179,7 +204,9 @@ public final class PasswordAdapter {
     public synchronized SecretKey getPasswordSecretKeyForAlias(String alias)
             throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
 
-        return (SecretKey)pwdStore.getKey(alias, getMasterPassword());
+        final SecretKey secretKey = (SecretKey)pwdStore.getKey(alias, getMasterPassword());
+        return new SecretKeySpec(removePadding(secretKey.getEncoded()), "AES");
+
     }
 
     /**
@@ -200,7 +227,7 @@ public final class PasswordAdapter {
      * @throws CertificateException
      */
     public synchronized void removeAlias( final String alias)
-        throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
+            throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
         pwdStore.deleteEntry(alias);
         writeStore();
     }
@@ -221,7 +248,7 @@ public final class PasswordAdapter {
      * @throws CertificateException
      */
     public void writeStore() throws KeyStoreException, IOException,
-        NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException
+            NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException
     {
         writeKeyStoreSafe( getMasterPassword() );
     }
@@ -236,9 +263,9 @@ public final class PasswordAdapter {
      * @exception NoSuchAlgorithmException
      */
     public synchronized void setPasswordForAlias(final String alias, final byte[] keyBytes)
-        throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
-        
-        final Key key = new SecretKeySpec(keyBytes, "AES");
+            throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
+
+        final Key key = new SecretKeySpec(addPadding(keyBytes, 24), "AES");
         pwdStore.setKeyEntry( alias, key, getMasterPassword(), null);
         writeStore();
     }
@@ -249,11 +276,11 @@ public final class PasswordAdapter {
      */
     private KeyStore duplicateKeyStore(final char[] newMasterPassword)
             throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
-        
+
         final char[] oldMasterPassword = getMasterPassword();
 
         final KeyStore oldStore = pwdStore;
-        final KeyStore newKeyStore = KeyStore.getInstance("JCEKS", pwdStore.getProvider());
+        final KeyStore newKeyStore = KeyStore.getInstance(KeyStore.getDefaultType(), pwdStore.getProvider());
         newKeyStore.load(null, newMasterPassword);
 
         final Enumeration<String> aliasesEnum = oldStore.aliases();
@@ -280,7 +307,7 @@ public final class PasswordAdapter {
      */
     private static void writeKeyStoreToFile(final KeyStore keyStore, final File file, final char[] masterPassword)
             throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
-        
+
         try (FileOutputStream out = new FileOutputStream(file)) {
             keyStore.store(out, masterPassword);
         }
@@ -288,14 +315,14 @@ public final class PasswordAdapter {
 
 
     /**
-        Writes the current KeyStore to disk in a manner that preserves its
-        on-disk representation from being destroyed if something goes wrong;
-        a temporary file is used.
+     Writes the current KeyStore to disk in a manner that preserves its
+     on-disk representation from being destroyed if something goes wrong;
+     a temporary file is used.
      */
     private synchronized void writeKeyStoreSafe(final char[] masterPassword)
             throws KeyStoreException, IOException, NoSuchAlgorithmException,
             CertificateException, UnrecoverableKeyException {
-        
+
         final boolean keystoreExists = keyFile.exists();
 
         // if the KeyStore exists, update it in a manner that doesn't destroy
@@ -353,29 +380,29 @@ public final class PasswordAdapter {
 
 
     /**
-        Changes the keystore password, including the encoding of the keys within it.
-        <p>
-        There are several error conditions that could occur:
-        <ul>
-            <li>Problem extracting existing alias keys with new ones.</li>
-            <li>Problem writing the keystore, including destroying it if an I/O problem occurs.</li>
-            <li></li>
-        </ul>
-        For these reasons,  make a new KeyStore and write it, then swap it with the old
-        one.
+     Changes the keystore password, including the encoding of the keys within it.
+     <p>
+     There are several error conditions that could occur:
+     <ul>
+     <li>Problem extracting existing alias keys with new ones.</li>
+     <li>Problem writing the keystore, including destroying it if an I/O problem occurs.</li>
+     <li></li>
+     </ul>
+     For these reasons,  make a new KeyStore and write it, then swap it with the old
+     one.
 
-      * @param newpassword the new keystore password
-      * @throws KeyStoreException
-      * @throws IOException
-      * @throws NoSuchAlgorithmException
-      * @throws CertificateException
-      */
+     * @param newpassword the new keystore password
+     * @throws KeyStoreException
+     * @throws IOException
+     * @throws NoSuchAlgorithmException
+     * @throws CertificateException
+     */
     public synchronized void changePassword(char[] newMasterPassword)
-        throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
+            throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
 
         writeKeyStoreSafe(newMasterPassword);
 
-     }
- }
+    }
+}
 
 

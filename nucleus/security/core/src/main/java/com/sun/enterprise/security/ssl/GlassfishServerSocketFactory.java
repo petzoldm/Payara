@@ -89,7 +89,7 @@ public class GlassfishServerSocketFactory extends JSSE14SocketFactory {
         KeyManager[] kMgrs = sslUtils.getKeyManagers(algorithm);
         if (keyAlias != null && keyAlias.length() > 0 && kMgrs != null) {
             for (int i = 0; i < kMgrs.length; i++) {
-                kMgrs[i] = new J2EEKeyManager((X509KeyManager) kMgrs[i], keyAlias);
+                //TODO kMgrs[i] = new J2EEKeyManager((X509KeyManager) kMgrs[i], keyAlias);
             }
         }
         return kMgrs;

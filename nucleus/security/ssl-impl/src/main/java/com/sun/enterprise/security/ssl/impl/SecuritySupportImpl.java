@@ -37,7 +37,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-// Portions Copyright [2018-2022] [Payara Foundation and/or its affiliates]"
+// Portions Copyright [2018-2021] [Payara Foundation and/or its affiliates]"
 package com.sun.enterprise.security.ssl.impl;
 
 import static java.lang.System.getProperty;
@@ -69,8 +69,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManager;
@@ -114,7 +114,7 @@ public class SecuritySupportImpl extends SecuritySupport {
 
     protected static final Logger _logger = Logger.getLogger(SEC_SSL_LOGGER, SHARED_LOGMESSAGE_RESOURCE);
 
-    @LogMessageInfo(message = "The SSL certificate with alias {0} has expired: {1}", level = "WARNING", cause = "Certificate expired.", action = "Check the expiration date of the certificate.")
+    @LogMessageInfo(message = "The SSL certificate has expired: {0}", level = "WARNING", cause = "Certificate expired.", action = "Check the expiration date of the certificate.")
     private static final String SSL_CERT_EXPIRED = "NCLS-SECURITY-05054";
 
     private static final String DEFAULT_KEYSTORE_PASS = "changeit";
@@ -246,9 +246,14 @@ public class SecuritySupportImpl extends SecuritySupport {
             }
         }
 
-        KeyManager keyManager = new UnifiedX509KeyManager(
-                keyManagers.toArray(new X509KeyManager[keyManagers.size()]),
-                getTokenNames());
+        KeyManager keyManager;
+        if (keyManagers.size() == 1) {
+            keyManager = keyManagers.get(0);
+        } else {
+            keyManager = new UnifiedX509KeyManager(
+                    keyManagers.toArray(new X509KeyManager[keyManagers.size()]),
+                    getTokenNames());
+        }
 
         return new KeyManager[] { keyManager };
     }
@@ -598,11 +603,10 @@ public class SecuritySupportImpl extends SecuritySupport {
         Enumeration<String> aliases = keyStore.aliases();
         
         while (aliases.hasMoreElements()) {
-            String alias = aliases.nextElement();
-            Certificate certificate = keyStore.getCertificate(alias);
+            Certificate certificate = keyStore.getCertificate(aliases.nextElement());
             if (certificate instanceof X509Certificate) {
                 if (((X509Certificate) certificate).getNotAfter().before(initDate)) {
-                    _logger.log(WARNING, SSL_CERT_EXPIRED, new Object[] { alias, certificate});
+                    _logger.log(WARNING, SSL_CERT_EXPIRED, certificate);
                 }
             }
         }
